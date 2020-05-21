@@ -1,4 +1,5 @@
-import React, { useReducer, useCallback, useEffect } from 'react';
+import React, { useReducer, useCallback, useEffect, useState, useRef } from 'react';
+import { unstable_batchedUpdates } from 'react-dom';
 import reducer, { initialState } from './lib/reducer';
 import { offlineSideEffects } from './lib/stream';
 
@@ -7,13 +8,31 @@ function useOfflineSideEffect(dispatch) {
 }
 
 function App() {
+  const [loaded, setLoaded] = useState(true);
   const [state, dispatch] = useReducer(reducer, initialState);
   const addSideEffect = useOfflineSideEffect(dispatch);
+  const initialItem = useRef(1);
   useEffect(() => {
-    let id = 1;
-    const makeRequest = _id =>
-      // @ts-ignore
-      addSideEffect({
+    return;
+    if (!loaded) {
+      const payload = JSON.parse(localStorage.getItem('aaaapersisted'));
+      initialItem.current = payload.app.todos.length;
+      addSideEffect({ type: 'rehydrate', payload });
+      dispatch({ type: 'rehydrate', payload });
+      setLoaded(true);
+    }
+
+    if (loaded) {
+      const persistedState = {
+        app: state,
+        offline: addSideEffect.getState()
+      };
+      localStorage.setItem('aaaapersisted', JSON.stringify(persistedState));
+    }
+  });
+  useEffect(() => {
+    const makeRequest = _id => {
+      const request = {
         type: 'request',
         payload: { _id },
         meta: {
@@ -21,10 +40,12 @@ function App() {
           commit: { type: 'commit', meta: { _id } },
           rollback: { type: 'rollback', meta: { _id } }
         }
-      });
+      };
+      dispatch(request);
+      addSideEffect(request);
+    };
     const onKeyPress = () => {
-      makeRequest(id);
-      id += 1;
+      makeRequest(initialItem.current += 1);
     };
     window.addEventListener('keypress', onKeyPress);
 
@@ -32,6 +53,10 @@ function App() {
       window.removeEventListener('keypress', onKeyPress);
     };
   }, [addSideEffect]);
+
+  if (!loaded) {
+    return null;
+  }
 
   return (
     <div style={{ margin: '12px 20px' }}>
@@ -49,9 +74,14 @@ function App() {
       </div>
       <div style={{ overflow: 'hidden', height: 'calc(100vh - 260px)' }}>
         <ol reversed>
-          {state.users.map((user, I) => (
-            <li key={user.id}>
-              <p>{user.title}</p>
+          {state.todos.map(todo => (
+            <li key={todo.id}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+                <p style={{ maxWidth: '80%', overflow: 'hidden', marginRight: '15px' }}>
+                  {todo.title}
+                </p>
+                <input type="checkbox" checked={todo.completed} />
+              </div>
             </li>
           ))}
         </ol>

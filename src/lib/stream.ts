@@ -1,19 +1,34 @@
-import { fromPromise, onStart, pipe, subscribe, takeWhile, fromArray } from 'wonka';
+import { pipe, tap, filter, share, makeSubject, publish } from 'wonka';
+import { composeExchanges, createOperationFromAction, updates } from './utils';
+import exchanges from './exchanges';
 
-const state = {
+export const state = {
   outbox: [],
   status: 'idle'
 };
 
-const updates = {
-  busy: 'busy',
-  enqueue: 'enqueue',
-  dequeue: 'dequeue'
+export const createUpdater = queue => {
+  function updater(type, payload = null) {
+    if (type === updates.rehydrate) {
+      Object.assign(state, payload);
+      state.status = 'idle';
+    }
+    if (type === updates.busy) {
+      state.status = payload ? 'busy' : 'idle';
+    }
+    if (type === updates.enqueue) {
+      queue.enqueue(state.outbox, payload);
+    }
+    if (type === updates.dequeue) {
+      queue.dequeue(state.outbox);
+    }
+  }
+
+  return updater;
 };
 
-const busy = () => ({ type: 'busy', payload: state.status });
-
 const defaults = {
+  exchanges,
   queue: {
     peek: outbox => outbox[0],
     enqueue: (outbox, item) => outbox.push(item),
@@ -21,78 +36,46 @@ const defaults = {
   }
 };
 
-const createUpdater = options => {
-  function updater(type, payload = null) {
-    if (type === updates.busy) {
-      state.status = state.status === 'idle' ? 'busy' : 'idle';
-    }
-    if (type === updates.enqueue) {
-      options.queue.enqueue(state.outbox, payload);
-    }
-    if (type === updates.dequeue) {
-      options.queue.dequeue(state.outbox);
-    }
-  }
+const fallbackExchange = ops$ =>
+  pipe(
+    ops$,
+    tap(operation => {
+      console.error(operation);
+    }),
+    filter(() => false)
+  );
 
+const getState = () => state;
+export const offlineSideEffects = (dispatch, options: any = defaults) => {
+  const { queue } = options;
+  const updateState = createUpdater(queue);
+  const exchange = composeExchanges(options.exchanges);
+  const { source: operations$, next: nextOperation } = makeSubject();
+  const results$ = share(
+    exchange({
+      forward: fallbackExchange,
+      client: {
+        dispatch,
+        updateState
+      }
+    })(operations$)
+  );
+
+  pipe(results$, publish);
+
+  const trigger = action => {
+    const operation = createOperationFromAction(action);
+    if (operation) {
+      nextOperation(operation);
+    }
+
+    if (state.status === 'idle') {
+      const next = queue.peek(state.outbox);
+      nextOperation(next);
+    }
+  };
+
+  const updater = action => trigger(action);
+  updater.getState = getState;
   return updater;
-};
-
-export const offlineSideEffects = (dispatch, options = defaults) => {
-  const updateState = createUpdater(options);
-
-  const actionWasRequested = (dispatch, action) => {
-    if (action.meta?.effect) {
-      updateState(updates.enqueue, action);
-      processOutbox(dispatch, action);
-    }
-    processOutbox(dispatch, null);
-  };
-
-  const send = (dispatch, next) =>
-    pipe(
-      fromPromise(
-        fetch(next.meta.effect)
-          .then(res => {
-            if (res.status >= 200 && res.status < 400) {
-              return res.json();
-            }
-            return Promise.reject(res.json());
-          })
-          .then(data => ({ success: true, data }))
-          .catch(err => ({ success: false, data: err }))
-      ),
-      subscribe((result: any) => {
-        if (result.success) {
-          dispatch({ ...next.meta.commit, payload: result.data });
-        } else {
-          dispatch({ ...next.meta.rollback, payload: result.data });
-        }
-        updateState(updates.dequeue);
-        updateState(updates.busy);
-        dispatch(busy());
-        processOutbox(dispatch, null);
-      })
-    );
-
-  const processOutbox = (dispatch, action = null) => {
-    const peeked = options.queue.peek(state.outbox);
-    const list$ = peeked ? [peeked] : [];
-    const source = fromArray(list$);
-    pipe(
-      source,
-      onStart(() => {
-        if (action) {
-          dispatch(action);
-        }
-      }),
-      takeWhile(() => state.status === 'idle'),
-      subscribe(next => {
-        updateState(updates.busy);
-        dispatch(busy());
-        send(dispatch, next);
-      })
-    );
-  };
-
-  return action => actionWasRequested(dispatch, action);
 };
