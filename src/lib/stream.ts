@@ -2,18 +2,21 @@ import { fromPromise, onStart, pipe, subscribe, takeWhile, fromArray } from 'won
 
 const state = {
   outbox: [],
-  status: 'idle'
+  status: 'idle' // 'idle', 'busy', 'paused'
 };
 
 const updates = {
   busy: 'busy',
   enqueue: 'enqueue',
-  dequeue: 'dequeue'
+  dequeue: 'dequeue',
+  pause: 'pause'
 };
 
 const busy = () => ({ type: 'busy', payload: state.status });
 
 const defaults = {
+  storageKey: 'offline-side-effects',
+  storage: localStorage,
   queue: {
     peek: outbox => outbox[0],
     enqueue: (outbox, item) => outbox.push(item),
@@ -32,67 +35,78 @@ const createUpdater = options => {
     if (type === updates.dequeue) {
       options.queue.dequeue(state.outbox);
     }
+    if(type === updates.pause) {
+      state.status = payload ? 'paused' : 'idle';
+    }
+    options.storage.setItem(options.storageKey, JSON.stringify(state.outbox));
   }
-
   return updater;
 };
 
-export const offlineSideEffects = (dispatch, options = defaults) => {
+const rehydrateOutbox = (options, fn) => {
+  const stringState = options.storage.getItem(options.storageKey);
+  if (stringState) {
+    state.outbox = JSON.parse(stringState);
+  }
+
+  if(state.outbox.length > 0) {
+    fn();
+  }
+};
+
+export const offlineSideEffects = (hooks, options = defaults) => {
   const updateState = createUpdater(options);
 
-  const actionWasRequested = (dispatch, action) => {
+  const actionWasRequested = (action) => {
     if (action.meta?.effect) {
       updateState(updates.enqueue, action);
-      processOutbox(dispatch, action);
+      hooks.onRequest(action);
     }
-    processOutbox(dispatch, null);
+    processOutbox();
   };
 
-  const send = (dispatch, next) =>
-    pipe(
-      fromPromise(
-        fetch(next.meta.effect)
-          .then(res => {
-            if (res.status >= 200 && res.status < 400) {
-              return res.json();
-            }
-            return Promise.reject(res.json());
-          })
-          .then(data => ({ success: true, data }))
-          .catch(err => ({ success: false, data: err }))
-      ),
-      subscribe((result: any) => {
-        if (result.success) {
-          dispatch({ ...next.meta.commit, payload: result.data });
-        } else {
-          dispatch({ ...next.meta.rollback, payload: result.data });
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+  const send = (next) => {
+    updateState(updates.busy);
+    fetch(next.meta.effect)
+      .then(res => {
+        if (res.status >= 200 && res.status < 400) {
+          return res.json();
         }
+        return Promise.reject(res.json());
+      })
+      .then(data => {
+        hooks.onCommit({ ...next.meta.commit, payload: data });
+      })
+      .catch(err => {
+        hooks.onRollback({ ...next.meta.rollback, payload: err })
+      })
+      .finally(() => {
         updateState(updates.dequeue);
         updateState(updates.busy);
-        dispatch(busy());
-        processOutbox(dispatch, null);
-      })
-    );
-
-  const processOutbox = (dispatch, action = null) => {
-    const peeked = options.queue.peek(state.outbox);
-    const list$ = peeked ? [peeked] : [];
-    const source = fromArray(list$);
-    pipe(
-      source,
-      onStart(() => {
-        if (action) {
-          dispatch(action);
-        }
-      }),
-      takeWhile(() => state.status === 'idle'),
-      subscribe(next => {
-        updateState(updates.busy);
-        dispatch(busy());
-        send(dispatch, next);
-      })
-    );
+        hooks.onStatusChange(busy());
+        processOutbox();
+      });
   };
 
-  return action => actionWasRequested(dispatch, action);
+  const processOutbox = () => {
+    const peeked = options.queue.peek(state.outbox);
+    if (peeked && state.status === 'idle') {
+      send(peeked)
+    }
+  };
+
+  const togglePause = (paused) => {
+    updateState(updates.pause, paused);
+    if (!paused) {
+      processOutbox();
+    }
+  };
+
+  rehydrateOutbox(options, processOutbox);
+  return {
+    addSideEffect: action => actionWasRequested(action),
+    setPaused: paused => togglePause(paused)
+  };
 };

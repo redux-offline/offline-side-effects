@@ -10130,6 +10130,11 @@ url@^0.11.0:
     punycode "1.3.2"
     querystring "0.2.0"
 
+use-persisted-reducer@^2.1.0:
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/use-persisted-reducer/-/use-persisted-reducer-2.1.0.tgz#7bd9f3414764879f6b7552a258b6d97edf4870f2"
+  integrity sha512-M/vnxxD2LvBKvYCuuIMte1dlshbZBHlpjTtCYL7amI0HLN1zeFvOyzRp3/RKFPgR9F/e7yDPxSQEeTeSDrGtoA==
+
 use@^3.1.0:
   version "3.1.1"
   resolved "https://registry.yarnpkg.com/use/-/use-3.1.1.tgz#d50c8cac79a19fbc20f2911f56eb973f4e10070f"

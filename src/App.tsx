@@ -1,14 +1,34 @@
-import React, { useReducer, useCallback, useEffect } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import reducer, { initialState } from './lib/reducer';
 import { offlineSideEffects } from './lib/stream';
+import createPersistedReducer from 'use-persisted-reducer';
 
-function useOfflineSideEffect(dispatch) {
-  return useCallback(offlineSideEffects(dispatch), []);
-}
+const usePersistedReducer = createPersistedReducer('app-state')
+
+const detectNetwork = callback => {
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('online', () => callback(true));
+    window.addEventListener('offline', () => callback(false));
+    callback(window.navigator.onLine);
+  }
+};
 
 function App() {
-  const [state, dispatch] = useReducer(reducer, initialState);
-  const addSideEffect = useOfflineSideEffect(dispatch);
+  const [state, dispatch] = usePersistedReducer(reducer, initialState);
+  const paused = useRef(false);
+  const hooks = {
+    onRequest: dispatch,
+    onRollback: dispatch,
+    onCommit: dispatch,
+    onStatusChange: dispatch
+  };
+
+  const { addSideEffect, setPaused } = useMemo(() => { return offlineSideEffects(hooks); }, []);
+
+  useEffect(() => {
+    detectNetwork(online => setPaused(!online));
+  }, []);
+
   useEffect(() => {
     let id = 1;
     const makeRequest = _id =>
@@ -49,7 +69,7 @@ function App() {
       </div>
       <div style={{ overflow: 'hidden', height: 'calc(100vh - 260px)' }}>
         <ol reversed>
-          {state.users.map((user, I) => (
+          {state.users.map((user) => (
             <li key={user.id}>
               <p>{user.title}</p>
             </li>
