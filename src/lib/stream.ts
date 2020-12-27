@@ -8,11 +8,11 @@ export function createStream(context) {
 
   const start = () => {
     let i = 0;
-    const next = async prev => {
+    const next = async (...prev) => {
       const current = stream[i];
       if (current) {
         i++;
-        await current(next, prev);
+        await current(next, ...prev);
       } else if (state.outbox.length > 0) {
         start();
       }
