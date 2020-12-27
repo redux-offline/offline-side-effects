@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import reducer, { initialState } from './lib/reducer';
-import { offlineSideEffects } from './lib/stream';
+import { offlineSideEffects } from './lib';
 import createPersistedReducer from 'use-persisted-reducer';
 
 const usePersistedReducer = createPersistedReducer('app-state');
