@@ -1,8 +1,7 @@
-import { fromPromise, onStart, pipe, subscribe, takeWhile, fromArray } from 'wonka';
-
 const state = {
   outbox: [],
-  status: 'idle' // 'idle', 'busy', 'paused'
+  status: 'idle', // 'idle', 'busy'
+  paused: false
 };
 
 const updates = {
@@ -12,8 +11,6 @@ const updates = {
   pause: 'pause'
 };
 
-const busy = () => ({ type: 'busy', payload: state.status });
-
 const defaults = {
   storageKey: 'offline-side-effects',
   storage: localStorage,
@@ -21,7 +18,14 @@ const defaults = {
     peek: outbox => outbox[0],
     enqueue: (outbox, item) => outbox.push(item),
     dequeue: outbox => outbox.shift()
-  }
+  },
+  effect: url =>
+    fetch(url).then(res => {
+      if (res.status >= 200 && res.status < 400) {
+        return res.json();
+      }
+      return Promise.reject(res.json());
+    })
 };
 
 const createUpdater = options => {
@@ -35,78 +39,116 @@ const createUpdater = options => {
     if (type === updates.dequeue) {
       options.queue.dequeue(state.outbox);
     }
-    if(type === updates.pause) {
-      state.status = payload ? 'paused' : 'idle';
+    if (type === updates.pause) {
+      state.paused = payload;
     }
     options.storage.setItem(options.storageKey, JSON.stringify(state.outbox));
   }
   return updater;
 };
 
-const rehydrateOutbox = (options, fn) => {
-  const stringState = options.storage.getItem(options.storageKey);
-  if (stringState) {
-    state.outbox = JSON.parse(stringState);
-  }
-
-  if(state.outbox.length > 0) {
-    fn();
-  }
-};
-
 export const offlineSideEffects = (hooks, options = defaults) => {
   const updateState = createUpdater(options);
 
-  const actionWasRequested = (action) => {
+  // TRIGGERS
+  const actionWasRequested = action => {
     if (action.meta?.effect) {
       updateState(updates.enqueue, action);
       hooks.onRequest(action);
     }
-    processOutbox();
+    startStream();
   };
 
-  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
-
-  const send = (next) => {
-    updateState(updates.busy);
-    fetch(next.meta.effect)
-      .then(res => {
-        if (res.status >= 200 && res.status < 400) {
-          return res.json();
-        }
-        return Promise.reject(res.json());
-      })
-      .then(data => {
-        hooks.onCommit({ ...next.meta.commit, payload: data });
-      })
-      .catch(err => {
-        hooks.onRollback({ ...next.meta.rollback, payload: err })
-      })
-      .finally(() => {
-        updateState(updates.dequeue);
-        updateState(updates.busy);
-        hooks.onStatusChange(busy());
-        processOutbox();
-      });
-  };
-
-  const processOutbox = () => {
-    const peeked = options.queue.peek(state.outbox);
-    if (peeked && state.status === 'idle') {
-      send(peeked)
-    }
-  };
-
-  const togglePause = (paused) => {
+  const togglePause = paused => {
     updateState(updates.pause, paused);
     if (!paused) {
-      processOutbox();
+      startStream();
     }
   };
 
-  rehydrateOutbox(options, processOutbox);
+  const rehydrateOutbox = () => {
+    const stringState = options.storage.getItem(options.storageKey);
+    if (stringState) {
+      state.outbox = JSON.parse(stringState);
+    }
+
+    if (state.outbox.length > 0) {
+      startStream();
+    }
+  };
+
+  const restartProcess = () => {
+    startStream();
+  };
+
+  // STREAM MIDDLEWARE
+  const processOutbox = next => {
+    const peeked = options.queue.peek(state.outbox);
+    if (peeked && state.status === 'idle' && !state.paused) {
+      return next(peeked);
+    }
+  };
+
+  const send = async (next, action) => {
+    updateState(updates.busy);
+    try {
+      const data = await options.effect(action.meta.effect);
+      hooks.onCommit({ ...action.meta.commit, payload: data });
+    } catch (err) {
+      hooks.onRollback({ ...action.meta.rollback, payload: err });
+    } finally {
+      updateState(updates.dequeue);
+      updateState(updates.busy);
+      hooks.onStatusChange(state.status);
+    }
+    next();
+  };
+
+  const wrapUp = next => {
+    hooks.onEnd();
+    next();
+  };
+
+  const stream = [processOutbox, send, wrapUp];
+
+  const startStream = () => {
+    let i = 0;
+    const next = async prev => {
+      const current = stream[i];
+      if (current) {
+        i++;
+        await current(next, prev);
+      } else if (state.outbox.length > 0) {
+        restartProcess();
+      }
+    };
+
+    next(null).catch(console.error);
+  };
+
+  // TRIGGERS
+  // ======
+  // A) rehydrateOutbox => 1.
+  // B) togglePause => 1.
+  // C) actionWasRequested => 1.
+  // D) restartProcess => 1.
+
+  // STREAM MIDDLEWARE
+  // ======
+  // [1. processOutbox, 2. send]
+
+  // HOOKS
+  // =======
+  // onRequest
+  // onRollback
+  // onCommit
+  // onStatusChange
+  // onEnd
+
   return {
+    rehydrate: rehydrateOutbox,
     addSideEffect: action => actionWasRequested(action),
-    setPaused: paused => togglePause(paused)
+    setPaused: paused => togglePause(paused),
+    restart: restartProcess
   };
 };

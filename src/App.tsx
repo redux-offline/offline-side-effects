@@ -1,31 +1,43 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import reducer, { initialState } from './lib/reducer';
 import { offlineSideEffects } from './lib/stream';
 import createPersistedReducer from 'use-persisted-reducer';
 
-const usePersistedReducer = createPersistedReducer('app-state')
+const usePersistedReducer = createPersistedReducer('app-state');
+
+const toggleBusy = (payload) => ({ type: 'busy', payload });
 
 const detectNetwork = callback => {
+  const onOnline = () => callback(true);
+  const onOffline = () => callback(false);
   if (typeof window !== 'undefined' && window.addEventListener) {
-    window.addEventListener('online', () => callback(true));
-    window.addEventListener('offline', () => callback(false));
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
     callback(window.navigator.onLine);
   }
+
+  return () => {
+    if (typeof window !== 'undefined' && window.removeEventListener) {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    }
+  };
 };
 
 function App() {
   const [state, dispatch] = usePersistedReducer(reducer, initialState);
-  const paused = useRef(false);
   const hooks = {
     onRequest: dispatch,
     onRollback: dispatch,
     onCommit: dispatch,
-    onStatusChange: dispatch
+    onStatusChange: status => dispatch(toggleBusy(status)),
+    onEnd: () => {}
   };
 
-  const { addSideEffect, setPaused } = useMemo(() => { return offlineSideEffects(hooks); }, []);
+  const { addSideEffect, setPaused, rehydrate } = useMemo(() => offlineSideEffects(hooks), []);
 
   useEffect(() => {
+    rehydrate();
     detectNetwork(online => setPaused(!online));
   }, []);
 
@@ -69,7 +81,7 @@ function App() {
       </div>
       <div style={{ overflow: 'hidden', height: 'calc(100vh - 260px)' }}>
         <ol reversed>
-          {state.users.map((user) => (
+          {state.users.map(user => (
             <li key={user.id}>
               <p>{user.title}</p>
             </li>
