@@ -1,40 +1,48 @@
-import { updates } from './updater';
+import {
+  Updates,
+  Context,
+  ProcessOutboxMiddleware,
+  SendMiddleware,
+  RetryMiddleware,
+  WrapUpMiddleware
+} from './types';
 
 const sleep = ms => new Promise(res => setTimeout(res, ms));
 
-export function createMiddleware({ updater, options, hooks }) {
+export function createMiddleware({ updater, options, hooks }: Context) {
   const [state, updateState] = updater;
-  const processOutbox = async next => {
+
+  const processOutbox: ProcessOutboxMiddleware = async next => {
     const peeked = options.queue.peek(state.outbox);
     if (peeked && state.status === 'idle' && !state.paused) {
       if (state.retryScheduled !== null) {
         await sleep(state.retryScheduled);
-        updateState(updates.completeRetry);
+        updateState(Updates.completeRetry);
       }
-      return next(peeked);
+      await next(peeked);
     }
   };
 
-  const send = async (next, action) => {
-    updateState(updates.busy);
+  const send: SendMiddleware = async (next, action) => {
+    updateState(Updates.busy);
     hooks.onStatusChange(state.status);
     let error;
     try {
       const data = await options.effect(action.meta.effect);
       hooks.onCommit(data, action.meta.commit);
-      updateState(updates.dequeue);
+      updateState(Updates.dequeue);
     } catch (err) {
       error = err;
     } finally {
-      updateState(updates.busy);
+      updateState(Updates.busy);
       hooks.onStatusChange(state.status);
-      next(error, action);
+      await next(error, action);
     }
   };
 
-  const retry = async (next, error, action) => {
+  const retry: RetryMiddleware = async (next, error, action) => {
     if (!error) {
-      next();
+      await next();
       return;
     }
     let mustDiscard = true;
@@ -47,18 +55,18 @@ export function createMiddleware({ updater, options, hooks }) {
     if (!mustDiscard) {
       const delay = options.retry(action, state.retryCount);
       if (delay != null) {
-        updateState(updates.scheduleRetry, delay);
+        updateState(Updates.scheduleRetry, delay);
       }
     } else {
       hooks.onRollback(error, action.meta.rollback);
-      updateState(updates.dequeue);
+      updateState(Updates.dequeue);
     }
-    next();
+    await next();
   };
 
-  const wrapUp = next => {
+  const wrapUp: WrapUpMiddleware = async next => {
     hooks.onEnd();
-    next();
+    await next();
   };
 
   return {

@@ -1,11 +1,5 @@
-type Updater = (type: string, payload?: any) => void;
-type State = {
-  outbox: any[];
-  status: 'idle' | 'busy';
-  paused: boolean;
-  retryScheduled: number | null;
-  retryCount: number;
-};
+import { State, UpdateState, Updater, Updates, Options, Hooks } from './types';
+
 const initialState: State = {
   outbox: [],
   status: 'idle', // 'idle', 'busy'
@@ -14,47 +8,37 @@ const initialState: State = {
   retryCount: 0
 };
 
-export const updates = {
-  busy: 'busy',
-  enqueue: 'enqueue',
-  dequeue: 'dequeue',
-  pause: 'pause',
-  rehydrate: 'rehydrate',
-  scheduleRetry: 'scheduleRetry',
-  completeRetry: 'completeRetry'
-};
-
-export const createUpdater = (options, hooks): [State, Updater] => {
+export const createUpdater = (options: Options, hooks: Hooks): Updater => {
   const state = { ...initialState };
-  function updater(type, payload = null) {
-    if (type === updates.rehydrate) {
+  const updateState: UpdateState = (type: Updates, payload = null) => {
+    if (type === Updates.rehydrate) {
       if (payload) {
         state.outbox = payload;
       }
     }
-    if (type === updates.busy) {
+    if (type === Updates.busy) {
       state.status = state.status === 'idle' ? 'busy' : 'idle';
     }
-    if (type === updates.enqueue) {
+    if (type === Updates.enqueue) {
       options.queue.enqueue(state.outbox, payload);
     }
-    if (type === updates.dequeue) {
+    if (type === Updates.dequeue) {
       options.queue.dequeue(state.outbox);
       state.retryCount = initialState.retryCount;
     }
-    if (type === updates.pause) {
+    if (type === Updates.pause) {
       state.paused = payload;
     }
-    if (type === updates.scheduleRetry) {
+    if (type === Updates.scheduleRetry) {
       state.retryScheduled = payload;
       state.retryCount = state.retryCount + 1;
     }
-    if (type === updates.completeRetry) {
+    if (type === Updates.completeRetry) {
       state.retryScheduled = initialState.retryScheduled;
     }
 
     hooks.onSerialize(state.outbox);
-  }
+  };
 
-  return [state, updater];
+  return [state, updateState];
 };

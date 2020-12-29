@@ -1,25 +1,25 @@
-import { updates } from './updater';
+import { Action, Context, Stream, Updates } from './types';
 
-export function createTriggers(stream, { updater, hooks }) {
+export function createTriggers(stream: Stream, { updater, hooks }: Context) {
   const [state, updateState] = updater;
 
-  const actionWasRequested = action => {
+  const actionWasRequested = (action: Action) => {
     if (action.meta?.effect) {
-      updateState(updates.enqueue, action);
+      updateState(Updates.enqueue, action);
       hooks.onRequest(action);
     }
     stream.start();
   };
 
-  const togglePause = paused => {
-    updateState(updates.pause, paused);
+  const togglePause = (paused: boolean) => {
+    updateState(Updates.pause, paused);
     if (!paused) {
       stream.start();
     }
   };
 
-  const rehydrateOutbox = (outbox: any[]) => {
-    updateState(updates.rehydrate, outbox);
+  const rehydrateOutbox = (outbox: Action[]) => {
+    updateState(Updates.rehydrate, outbox);
     if (state.outbox.length > 0) {
       stream.start();
     }

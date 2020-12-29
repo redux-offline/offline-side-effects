@@ -1,4 +1,6 @@
-export default {
+import { Options } from './types';
+
+const defaultOptions: Options = {
   queue: {
     peek: outbox => outbox[0],
     enqueue: (outbox, item) => outbox.push(item),
@@ -21,7 +23,6 @@ export default {
         throw new NetworkError(body || '', res.status);
       });
     }),
-  alterStream: (defaultMiddleware, _context) => defaultMiddleware,
   discard: (error, action, retries) => {
     if ('status' in error) {
       // discard http 4xx errors
@@ -45,6 +46,9 @@ export default {
       1000 * 60 * 60 // After 1 hour
     ];
 
-    return exponentialBackoff[retries] || null
-  }
+    return exponentialBackoff[retries] || null;
+  },
+  alterStream: (defaultMiddlewareChain, _context) => defaultMiddlewareChain
 };
+
+export default defaultOptions;
