@@ -17,7 +17,7 @@ export const offlineSideEffects = (hooks, options = defaults) => {
   );
 
   return {
-    rehydrate: rehydrateOutbox,
+    rehydrateOutbox,
     addSideEffect: action => actionWasRequested(action),
     setPaused: paused => togglePause(paused),
     restart: restartProcess
