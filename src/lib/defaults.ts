@@ -1,6 +1,4 @@
 export default {
-  storageKey: 'offline-side-effects',
-  storage: localStorage,
   queue: {
     peek: outbox => outbox[0],
     enqueue: (outbox, item) => outbox.push(item),

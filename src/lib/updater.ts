@@ -3,8 +3,8 @@ type State = {
   outbox: any[];
   status: 'idle' | 'busy';
   paused: boolean;
-  retryScheduled: number | null,
-  retryCount: number
+  retryScheduled: number | null;
+  retryCount: number;
 };
 const initialState: State = {
   outbox: [],
@@ -24,13 +24,12 @@ export const updates = {
   completeRetry: 'completeRetry'
 };
 
-export const createUpdater = (options): [State, Updater] => {
+export const createUpdater = (options, hooks): [State, Updater] => {
   const state = { ...initialState };
   function updater(type, payload = null) {
     if (type === updates.rehydrate) {
-      const stringState = options.storage.getItem(options.storageKey);
-      if (stringState) {
-        state.outbox = JSON.parse(stringState);
+      if (payload) {
+        state.outbox = payload;
       }
     }
     if (type === updates.busy) {
@@ -53,8 +52,8 @@ export const createUpdater = (options): [State, Updater] => {
     if (type === updates.completeRetry) {
       state.retryScheduled = initialState.retryScheduled;
     }
-    options.storage.setItem(options.storageKey, JSON.stringify(state.outbox));
-    console.log(state);
+
+    hooks.onSerialize(state.outbox);
   }
 
   return [state, updater];

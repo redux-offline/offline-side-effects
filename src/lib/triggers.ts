@@ -18,8 +18,8 @@ export function createTriggers(stream, { updater, hooks }) {
     }
   };
 
-  const rehydrateOutbox = () => {
-    updateState(updates.rehydrate);
+  const rehydrateOutbox = (outbox: any[]) => {
+    updateState(updates.rehydrate, outbox);
     if (state.outbox.length > 0) {
       stream.start();
     }

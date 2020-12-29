@@ -3,7 +3,8 @@ import createPersistedReducer from 'use-persisted-reducer';
 import { offlineSideEffects } from './lib';
 import reducer, { initialState } from './reducer';
 
-const usePersistedReducer = createPersistedReducer('app-state');
+const usePersistedOutbox = createPersistedReducer('offline-side-effects');
+const useAppStateReducer = createPersistedReducer('app-state');
 
 const toggleBusy = payload => ({ type: 'busy', payload });
 
@@ -24,22 +25,27 @@ const detectNetwork = callback => {
   };
 };
 
+const outboxReducer = (_, newState) => [...newState];
 function App() {
-  const [state, dispatch] = usePersistedReducer(reducer, initialState);
+  const [persistedOutbox, persist] = usePersistedOutbox(outboxReducer, []);
+
+  const [state, dispatch] = useAppStateReducer(reducer, initialState);
   const hooks = {
     onRequest: dispatch,
-    onRollback: (error, action) => dispatch({ ...action, payload: error}),
+    onRollback: (error, action) => dispatch({ ...action, payload: error }),
     onCommit: (data, action) => dispatch({ ...action, payload: data }),
     onStatusChange: status => dispatch(toggleBusy(status)),
-    onEnd: () => {}
+    onEnd: () => {},
+    onSerialize: persist
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const { addSideEffect, setPaused, rehydrate } = useMemo(() => offlineSideEffects(hooks), []);
 
   useEffect(() => {
-    rehydrate();
+    rehydrate(persistedOutbox);
     detectNetwork(online => setPaused(!online));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rehydrate, setPaused]);
 
   useEffect(() => {

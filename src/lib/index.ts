@@ -4,7 +4,7 @@ import { createTriggers } from './triggers';
 import { createStream } from './stream';
 
 export const offlineSideEffects = (hooks, options = defaults) => {
-  const updater = createUpdater(options);
+  const updater = createUpdater(options, hooks);
   const context = {
     options,
     hooks,
