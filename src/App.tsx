@@ -1,38 +1,71 @@
-import React, { useReducer, useCallback, useEffect, useState, useRef } from 'react';
-import { unstable_batchedUpdates } from 'react-dom';
-import reducer, { initialState } from './lib/reducer';
-import { offlineSideEffects } from './lib/stream';
+import React, { useEffect, useRef } from 'react';
+import createPersistedReducer from 'use-persisted-reducer';
+import { offlineSideEffects } from './lib';
+import reducer, { initialState } from './reducer';
 
-function useOfflineSideEffect(dispatch) {
-  return useCallback(offlineSideEffects(dispatch), []);
-}
+const usePersistedOutbox = createPersistedReducer('offline-side-effects');
+const useAppStateReducer = createPersistedReducer('app-state');
+
+const toggleBusy = payload => ({ type: 'busy', payload });
+
+const detectNetwork = callback => {
+  const onOnline = () => callback(true);
+  const onOffline = () => callback(false);
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    callback(window.navigator.onLine);
+  }
+
+  return () => {
+    if (typeof window !== 'undefined' && window.removeEventListener) {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    }
+  };
+};
+
+const useOfflineSideEffects = hooks => {
+  const outboxReducer = (_, newState) => [...newState];
+  const [persistedOutbox, persist] = usePersistedOutbox(outboxReducer, []);
+  const { addSideEffect, setPaused, rehydrateOutbox, restart } = useRef(
+    offlineSideEffects({ ...hooks, onSerialize: persist })
+  ).current;
+  const rehydrate = useRef(() => rehydrateOutbox(persistedOutbox)).current;
+  return {
+    addSideEffect,
+    setPaused,
+    rehydrate,
+    restart
+  };
+};
 
 function App() {
-  const [loaded, setLoaded] = useState(true);
-  const [state, dispatch] = useReducer(reducer, initialState);
-  const addSideEffect = useOfflineSideEffect(dispatch);
-  const initialItem = useRef(1);
-  useEffect(() => {
-    return;
-    if (!loaded) {
-      const payload = JSON.parse(localStorage.getItem('aaaapersisted'));
-      initialItem.current = payload.app.todos.length;
-      addSideEffect({ type: 'rehydrate', payload });
-      dispatch({ type: 'rehydrate', payload });
-      setLoaded(true);
-    }
+  const [state, dispatch] = useAppStateReducer(reducer, initialState);
+  const hooks = {
+    onRequest: dispatch,
+    onRollback: (error, action) => dispatch({ ...action, payload: error }),
+    onCommit: (data, action) => dispatch({ ...action, payload: data }),
+    onStatusChange: status => dispatch(toggleBusy(status)),
+    onEnd: () => {}
+  };
 
-    if (loaded) {
-      const persistedState = {
-        app: state,
-        offline: addSideEffect.getState()
-      };
-      localStorage.setItem('aaaapersisted', JSON.stringify(persistedState));
-    }
-  });
+  const {
+    addSideEffect,
+    setPaused,
+    rehydrate
+  } = useOfflineSideEffects(hooks);
+
   useEffect(() => {
-    const makeRequest = _id => {
-      const request = {
+    rehydrate();
+    detectNetwork(online => setPaused(!online));
+  }, [rehydrate, setPaused]);
+
+  useEffect(() => {
+    let id = state.users.length + 1;
+    const makeRequest = _id =>
+      // @ts-ignore
+      addSideEffect({
         type: 'request',
         payload: { _id },
         meta: {
@@ -40,23 +73,28 @@ function App() {
           commit: { type: 'commit', meta: { _id } },
           rollback: { type: 'rollback', meta: { _id } }
         }
-      };
-      dispatch(request);
-      addSideEffect(request);
-    };
-    const onKeyPress = () => {
-      makeRequest(initialItem.current += 1);
+      });
+    const onKeyPress = e => {
+      if (e.key === ' ' && e.target === document.body) {
+        e.preventDefault();
+      }
+      makeRequest(id);
+      // React is too slow updating this value
+      id += 1;
     };
     window.addEventListener('keypress', onKeyPress);
 
     return () => {
       window.removeEventListener('keypress', onKeyPress);
     };
+    // React is too slow updating state.users value,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addSideEffect]);
 
-  if (!loaded) {
-    return null;
-  }
+  const onClickRefresh = () => {
+    localStorage.clear();
+    window.location.reload();
+  };
 
   return (
     <div style={{ margin: '12px 20px' }}>
@@ -69,19 +107,17 @@ function App() {
           <pre style={{ height: 120, width: '50%', overflow: 'scroll' }}>
             <code>{state.commitData && JSON.stringify(state.commitData, null, 2)}</code>
           </pre>
+          <div>
+            <button onClick={onClickRefresh}>Refresh</button>
+          </div>
         </div>
         <h1 style={{ textAlign: 'center' }}>Press and hold any key!</h1>
       </div>
-      <div style={{ overflow: 'hidden', height: 'calc(100vh - 260px)' }}>
+      <div style={{ overflow: 'auto', height: 'calc(100vh - 260px)' }}>
         <ol reversed>
-          {state.todos.map(todo => (
-            <li key={todo.id}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
-                <p style={{ maxWidth: '80%', overflow: 'hidden', marginRight: '15px' }}>
-                  {todo.title}
-                </p>
-                <input type="checkbox" checked={todo.completed} />
-              </div>
+          {state.users.map(user => (
+            <li key={user.id} style={{ color: user.rolledback ? '#ff0000' : '#000000' }}>
+              <p>{user.title}</p>
             </li>
           ))}
         </ol>

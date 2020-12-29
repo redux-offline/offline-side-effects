@@ -5,19 +5,12 @@ export const initialState = {
   status: 'idle',
   commitData: null,
   progress: 'idle',
-  todos: []
+  users: []
 };
 
 function reducer(state = initialState, action: any) {
   return produce(state, draft => {
-    const getIndexToUpdate = id => draft.todos.findIndex(user => user.id === id);
-
-    if (action.type === 'rehydrate') {
-      if (action.payload) {
-        Object.assign(draft, action.payload.app);
-      }
-    }
-
+    const getIndexToUpdate = id => draft.users.findIndex(user => user.id === id);
     if (action.type === 'busy') {
       draft.status = action.payload;
     }
@@ -26,21 +19,20 @@ function reducer(state = initialState, action: any) {
       draft.progress = `processing request ${action.payload._id}`;
       draft.commitData = null;
       // @ts-ignore
-      draft.todos.unshift({ id: action.payload._id, title: 'Loading...' });
+      draft.users.unshift({ id: action.payload._id, title: 'Loading... ⏳' });
     }
-
     if (action.type === 'commit') {
       draft.progress = `committed ${action.payload.id}`;
       draft.commitData = action.payload;
       const index = getIndexToUpdate(action.meta._id);
-      draft.todos.splice(index, 1, action.payload);
+      draft.users.splice(index, 1, action.payload);
     }
-
     if (action.type === 'rollback') {
       draft.progress = `rolled back ${action.meta._id}`;
       draft.commitData = null;
       const index = getIndexToUpdate(action.meta._id);
-      draft.todos.splice(index, 1);
+      draft.users[index].rolledback = true;
+      draft.users[index].title = 'Failed ❌';
     }
   });
 }
