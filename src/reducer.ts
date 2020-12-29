@@ -19,7 +19,7 @@ function reducer(state = initialState, action: any) {
       draft.progress = `processing request ${action.payload._id}`;
       draft.commitData = null;
       // @ts-ignore
-      draft.users.unshift({ id: action.payload._id, title: 'Loading...' });
+      draft.users.unshift({ id: action.payload._id, title: 'Loading... ⏳' });
     }
     if (action.type === 'commit') {
       draft.progress = `committed ${action.payload.id}`;
@@ -31,7 +31,8 @@ function reducer(state = initialState, action: any) {
       draft.progress = `rolled back ${action.meta._id}`;
       draft.commitData = null;
       const index = getIndexToUpdate(action.meta._id);
-      draft.users.splice(index, 1);
+      draft.users[index].rolledback = true;
+      draft.users[index].title = 'Failed ❌';
     }
   });
 }

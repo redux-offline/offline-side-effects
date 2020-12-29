@@ -7,7 +7,22 @@ export default {
     dequeue: outbox => outbox.shift()
   },
   effect: url =>
-    fetch(url).then(res => res.json()),
+    fetch(url).then(res => {
+      function NetworkError(response: {} | string, status: number) {
+        this.name = 'NetworkError';
+        this.status = status;
+        this.response = response;
+      }
+
+      NetworkError.prototype = Error.prototype;
+
+      if (res.ok) {
+        return res.json();
+      }
+      return res.json().then(body => {
+        throw new NetworkError(body || '', res.status);
+      });
+    }),
   alterStream: (defaultMiddleware, _context) => defaultMiddleware,
   discard: (error, action, retries) => {
     if ('status' in error) {

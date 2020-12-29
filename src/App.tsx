@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo } from 'react';
-import reducer, { initialState } from './lib/reducer';
-import { offlineSideEffects } from './lib';
 import createPersistedReducer from 'use-persisted-reducer';
+import { offlineSideEffects } from './lib';
+import reducer, { initialState } from './reducer';
 
 const usePersistedReducer = createPersistedReducer('app-state');
 
-const toggleBusy = (payload) => ({ type: 'busy', payload });
+const toggleBusy = payload => ({ type: 'busy', payload });
 
 const detectNetwork = callback => {
   const onOnline = () => callback(true);
@@ -42,7 +42,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    let id = 1;
+    let id = state.users.length + 1;
     const makeRequest = _id =>
       // @ts-ignore
       addSideEffect({
@@ -54,8 +54,12 @@ function App() {
           rollback: { type: 'rollback', meta: { _id } }
         }
       });
-    const onKeyPress = () => {
+    const onKeyPress = e => {
+      if (e.key === ' ' && e.target === document.body) {
+        e.preventDefault();
+      }
       makeRequest(id);
+      // React is too slow updating this value
       id += 1;
     };
     window.addEventListener('keypress', onKeyPress);
@@ -63,7 +67,14 @@ function App() {
     return () => {
       window.removeEventListener('keypress', onKeyPress);
     };
+    // React is too slow updating state.users value,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addSideEffect]);
+
+  const onClickRefresh = () => {
+    localStorage.clear();
+    window.location.reload();
+  };
 
   return (
     <div style={{ margin: '12px 20px' }}>
@@ -76,13 +87,16 @@ function App() {
           <pre style={{ height: 120, width: '50%', overflow: 'scroll' }}>
             <code>{state.commitData && JSON.stringify(state.commitData, null, 2)}</code>
           </pre>
+          <div>
+            <button onClick={onClickRefresh}>Refresh</button>
+          </div>
         </div>
         <h1 style={{ textAlign: 'center' }}>Press and hold any key!</h1>
       </div>
-      <div style={{ overflow: 'hidden', height: 'calc(100vh - 260px)' }}>
+      <div style={{ overflow: 'auto', height: 'calc(100vh - 260px)' }}>
         <ol reversed>
           {state.users.map(user => (
-            <li key={user.id}>
+            <li key={user.id} style={{ color: user.rolledback ? '#ff0000' : '#000000' }}>
               <p>{user.title}</p>
             </li>
           ))}
