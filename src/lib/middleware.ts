@@ -17,6 +17,7 @@ export function createMiddleware({ updater, options, hooks }) {
 
   const send = async (next, action) => {
     updateState(updates.busy);
+    hooks.onStatusChange(state.status);
     let error;
     try {
       const data = await options.effect(action.meta.effect);
