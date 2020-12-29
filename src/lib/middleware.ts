@@ -20,7 +20,7 @@ export function createMiddleware({ updater, options, hooks }) {
     let error;
     try {
       const data = await options.effect(action.meta.effect);
-      hooks.onCommit({ ...action.meta.commit, payload: data });
+      hooks.onCommit(data, action.meta.commit);
       updateState(updates.dequeue);
     } catch (err) {
       error = err;
@@ -49,7 +49,7 @@ export function createMiddleware({ updater, options, hooks }) {
         updateState(updates.scheduleRetry, delay);
       }
     } else {
-      hooks.onRollback({ ...action.meta.rollback, payload: error });
+      hooks.onRollback(error, action.meta.rollback);
       updateState(updates.dequeue);
     }
     next();

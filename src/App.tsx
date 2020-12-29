@@ -28,18 +28,19 @@ function App() {
   const [state, dispatch] = usePersistedReducer(reducer, initialState);
   const hooks = {
     onRequest: dispatch,
-    onRollback: dispatch,
-    onCommit: dispatch,
+    onRollback: (error, action) => dispatch({ ...action, payload: error}),
+    onCommit: (data, action) => dispatch({ ...action, payload: data }),
     onStatusChange: status => dispatch(toggleBusy(status)),
     onEnd: () => {}
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const { addSideEffect, setPaused, rehydrate } = useMemo(() => offlineSideEffects(hooks), []);
 
   useEffect(() => {
     rehydrate();
     detectNetwork(online => setPaused(!online));
-  }, []);
+  }, [rehydrate, setPaused]);
 
   useEffect(() => {
     let id = state.users.length + 1;
