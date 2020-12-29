@@ -4,9 +4,13 @@ const sleep = ms => new Promise(res => setTimeout(res, ms));
 
 export function createMiddleware({ updater, options, hooks }) {
   const [state, updateState] = updater;
-  const processOutbox = next => {
+  const processOutbox = async next => {
     const peeked = options.queue.peek(state.outbox);
     if (peeked && state.status === 'idle' && !state.paused) {
+      if (state.retryScheduled !== null) {
+        await sleep(state.retryScheduled);
+        updateState(updates.completeRetry);
+      }
       return next(peeked);
     }
   };
@@ -19,7 +23,6 @@ export function createMiddleware({ updater, options, hooks }) {
       hooks.onCommit({ ...action.meta.commit, payload: data });
       updateState(updates.dequeue);
     } catch (err) {
-      hooks.onRollback({ ...action.meta.rollback, payload: err });
       error = err;
     } finally {
       updateState(updates.busy);
@@ -35,19 +38,21 @@ export function createMiddleware({ updater, options, hooks }) {
     }
     let mustDiscard = true;
     try {
-      mustDiscard = await options.discard(error, action, state.retries);
+      mustDiscard = await options.discard(error, action, state.retryCount);
     } catch (e) {
       console.warn(e);
     }
 
     if (!mustDiscard) {
-      const delay = options.retry(action, state.retries);
+      const delay = options.retry(action, state.retryCount);
       if (delay != null) {
-        await sleep(delay);
-        next();
+        updateState(updates.scheduleRetry, delay);
       }
+    } else {
+      hooks.onRollback({ ...action.meta.rollback, payload: error });
     }
-  }
+    next();
+  };
 
   const wrapUp = next => {
     hooks.onEnd();
@@ -57,7 +62,7 @@ export function createMiddleware({ updater, options, hooks }) {
   return {
     processOutbox,
     send,
-    // retry,
+    retry,
     wrapUp
   };
 }
