@@ -50,6 +50,7 @@ export function createMiddleware({ updater, options, hooks }) {
       }
     } else {
       hooks.onRollback({ ...action.meta.rollback, payload: error });
+      updateState(updates.dequeue);
     }
     next();
   };
