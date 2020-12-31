@@ -1,12 +1,13 @@
-import { Action, Context, Stream, Updates } from './types';
+import { Action, Context, Stream, Updates, State } from './types';
 
 export function createTriggers(stream: Stream, { updater, hooks }: Context) {
   const [state, updateState] = updater;
 
   const actionWasRequested = (action: Action) => {
     if (action.meta?.effect) {
-      updateState(Updates.enqueue, action);
-      hooks.onRequest(action);
+      const request = { ...action };
+      updateState(Updates.enqueue, request);
+      hooks.onRequest(request);
     }
     stream.start();
   };
@@ -18,8 +19,8 @@ export function createTriggers(stream: Stream, { updater, hooks }: Context) {
     }
   };
 
-  const rehydrateOutbox = (outbox: Action[]) => {
-    updateState(Updates.rehydrate, outbox);
+  const rehydrateState = (newState: State) => {
+    updateState(Updates.rehydrate, { ...newState });
     if (state.outbox.length > 0) {
       stream.start();
     }
@@ -32,7 +33,7 @@ export function createTriggers(stream: Stream, { updater, hooks }: Context) {
   return {
     actionWasRequested,
     togglePause,
-    rehydrateOutbox,
+    rehydrateState,
     restartProcess
   };
 }

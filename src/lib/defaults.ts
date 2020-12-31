@@ -3,8 +3,12 @@ import { Options } from './types';
 const defaultOptions: Options = {
   queue: {
     peek: outbox => outbox[0],
-    enqueue: (outbox, item) => outbox.push(item),
-    dequeue: outbox => outbox.shift()
+    enqueue: (outbox, item) => [...outbox, item],
+    dequeue: (outbox, _action) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const [removed, ...newOutbox] = outbox;
+      return newOutbox;
+    }
   },
   effect: url =>
     fetch(url).then(res => {

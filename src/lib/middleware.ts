@@ -30,7 +30,7 @@ export function createMiddleware({ updater, options, hooks }: Context) {
     try {
       const data = await options.effect(action.meta.effect);
       hooks.onCommit(data, action.meta.commit);
-      updateState(Updates.dequeue);
+      updateState(Updates.dequeue, action);
     } catch (err) {
       error = err;
     } finally {

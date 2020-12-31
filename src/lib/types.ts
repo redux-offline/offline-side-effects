@@ -14,6 +14,7 @@ export type Action<T = { [key: string]: any }, C = {}, R = {}> = T & {
     effect: string;
     commit: C;
     rollback: R;
+    transaction: number;
   };
 };
 export type State = {
@@ -22,6 +23,7 @@ export type State = {
   paused: boolean;
   retryScheduled: number | null;
   retryCount: number;
+  lastTransaction: number;
 };
 export type Updater = [State, UpdateState];
 
@@ -54,7 +56,7 @@ export type Hooks = {
   onRollback: (error: UnknownError, action: Action['meta']['rollback']) => void;
   onStatusChange: (status: string) => void;
   onEnd: () => void;
-  onSerialize: (outbox: Action[]) => void;
+  onSerialize: (state: State) => void;
 };
 
 export type Stream = {
@@ -70,8 +72,8 @@ export type Context = {
 export type Options = {
   queue: {
     peek: (outbox: Action[]) => Action;
-    enqueue: (outbox: Action[], item: Action) => void;
-    dequeue: (outbox: Action[]) => void;
+    enqueue: (outbox: Action[], action: Action) => Action[];
+    dequeue: (outbox: Action[], completed: Action) => Action[];
   };
   effect: (requestInfo: RequestInfo) => Promise<unknown>;
   discard: (

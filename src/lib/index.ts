@@ -4,7 +4,7 @@ import { createUpdater } from './updater';
 import { createTriggers } from './triggers';
 import { createStream } from './stream';
 
-export const offlineSideEffects = (providedHooks: Partial<Hooks>, options: Options = defaults) => {
+export const offlineSideEffects = (providedHooks: Partial<Hooks>, providedOptions?: Options) => {
   const hooks = {
     onRequest: () => {},
     onCommit: () => {},
@@ -14,6 +14,10 @@ export const offlineSideEffects = (providedHooks: Partial<Hooks>, options: Optio
     onSerialize: () => {},
     ...providedHooks
   };
+  const options = {
+    ...defaults,
+    ...providedOptions,
+  };
   const updater = createUpdater(options, hooks);
   const context: Context = {
     options,
@@ -21,13 +25,13 @@ export const offlineSideEffects = (providedHooks: Partial<Hooks>, options: Optio
     updater
   };
   const stream = createStream(context);
-  const { rehydrateOutbox, actionWasRequested, togglePause, restartProcess } = createTriggers(
+  const { rehydrateState, actionWasRequested, togglePause, restartProcess } = createTriggers(
     stream,
     context
   );
 
   return {
-    rehydrateOutbox,
+    rehydrateState,
     addSideEffect: action => actionWasRequested(action),
     setPaused: paused => togglePause(paused),
     restart: restartProcess
