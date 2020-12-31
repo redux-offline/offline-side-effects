@@ -55,6 +55,7 @@ export function createMiddleware({ updater, options, hooks }: Context) {
     if (!mustDiscard) {
       const delay = options.retry(action, state.retryCount);
       if (delay != null) {
+        hooks.onRetry(delay);
         updateState(Updates.scheduleRetry, delay);
       }
     } else {

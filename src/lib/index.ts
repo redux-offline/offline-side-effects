@@ -12,11 +12,12 @@ export const offlineSideEffects = (providedHooks: Partial<Hooks>, providedOption
     onStatusChange: () => {},
     onEnd: () => {},
     onSerialize: () => {},
+    onRetry: () => {},
     ...providedHooks
   };
   const options = {
     ...defaults,
-    ...providedOptions,
+    ...providedOptions
   };
   const updater = createUpdater(options, hooks);
   const context: Context = {

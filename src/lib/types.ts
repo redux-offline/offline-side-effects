@@ -57,6 +57,7 @@ export type Hooks = {
   onStatusChange: (status: string) => void;
   onEnd: () => void;
   onSerialize: (state: State) => void;
+  onRetry: (delay: number) => void
 };
 
 export type Stream = {
