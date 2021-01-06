@@ -43,6 +43,9 @@ export const createUpdater = (options: Options, hooks: Hooks): Updater => {
     if (type === Updates.completeRetry) {
       state.retryScheduled = initialState.retryScheduled;
     }
+    if (type === Updates.reset) {
+      Object.assign(state, initialState);
+    }
 
     hooks.onSerialize(state);
   };

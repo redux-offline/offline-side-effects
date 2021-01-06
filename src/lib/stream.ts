@@ -6,9 +6,9 @@ export function createStream(context: Context): Stream {
     updater: [state],
     options
   } = context;
-  const { processOutbox, send, retry, wrapUp } = createMiddleware(context);
+  const { processOutbox, send, retry } = createMiddleware(context);
 
-  const stream = options.alterStream([processOutbox, send, retry, wrapUp], context);
+  const stream = options.alterStream([processOutbox, send, retry], context);
 
   const start = () => {
     let i = 0;

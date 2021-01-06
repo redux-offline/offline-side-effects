@@ -1,5 +1,4 @@
 # offline-side-effects
-
 The JS focused library for offline first async side effects. This library takes all the learnings of building Redux-Offline and extracts them into a pure JS module that can be used in almost any context.
 
 The main aspects that this library focuses on are:

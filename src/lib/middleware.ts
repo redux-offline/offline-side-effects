@@ -3,8 +3,7 @@ import {
   Context,
   ProcessOutboxMiddleware,
   SendMiddleware,
-  RetryMiddleware,
-  WrapUpMiddleware
+  RetryMiddleware
 } from './types';
 
 const sleep = ms => new Promise(res => setTimeout(res, ms));
@@ -67,15 +66,9 @@ export function createMiddleware({ updater, options, hooks }: Context) {
     await next();
   };
 
-  const wrapUp: WrapUpMiddleware = async next => {
-    hooks.onEnd();
-    await next();
-  };
-
   return {
     processOutbox,
     send,
-    retry,
-    wrapUp
+    retry
   };
 }
