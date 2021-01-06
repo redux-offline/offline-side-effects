@@ -47,8 +47,7 @@ function App() {
     onRequest: dispatch,
     onRollback: (error, action) => dispatch({ ...action, payload: error }),
     onCommit: (data, action) => dispatch({ ...action, payload: data }),
-    onStatusChange: status => dispatch(toggleBusy(status)),
-    onEnd: () => {}
+    onStatusChange: status => dispatch(toggleBusy(status))
   };
 
   const { addSideEffect, setPaused, rehydrate } = useOfflineSideEffects(hooks);

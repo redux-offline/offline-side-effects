@@ -10,7 +10,6 @@ export const offlineSideEffects = (providedHooks: Partial<Hooks>, providedOption
     onCommit: () => {},
     onRollback: () => {},
     onStatusChange: () => {},
-    onEnd: () => {},
     onSerialize: () => {},
     onRetry: () => {},
     ...providedHooks
