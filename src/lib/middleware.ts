@@ -14,17 +14,19 @@ export function createMiddleware({ updater, options, hooks }: Context) {
 
   const processOutbox: ProcessOutboxMiddleware = async next => {
     const peeked = options.queue.peek(state.outbox);
-    if (peeked && state.status === 'idle' && !state.paused) {
+    if (peeked) {
       if (state.retryScheduled !== null) {
         await sleep(state.retryScheduled);
         updateState(Updates.completeRetry);
       }
-      await next(peeked);
+      if (state.status === 'idle') {
+        await next(peeked);
+      }
     }
   };
 
   const send: SendMiddleware = async (next, action) => {
-    updateState(Updates.busy);
+    updateState(Updates.toggleBusy);
     hooks.onStatusChange(state.status);
     let error;
     try {
@@ -34,7 +36,7 @@ export function createMiddleware({ updater, options, hooks }: Context) {
     } catch (err) {
       error = err;
     } finally {
-      updateState(Updates.busy);
+      updateState(Updates.toggleBusy);
       hooks.onStatusChange(state.status);
       await next(error, action);
     }
