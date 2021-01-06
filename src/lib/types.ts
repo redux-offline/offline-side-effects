@@ -15,9 +15,10 @@ export type Action<T = { [key: string]: any }, C = {}, R = {}> = T & {
     effect: string;
     commit: C;
     rollback: R;
-    transaction: number;
+    transaction?: number;
   };
 };
+
 export type State = {
   outbox: Action[];
   status: 'idle' | 'busy';
@@ -42,11 +43,7 @@ export type ProcessOutboxMiddleware = Middleware<undefined[], [Action]>;
 export type SendMiddleware = Middleware<[Action], [UnknownError, Action]>;
 export type RetryMiddleware = Middleware<[UnknownError, Action], undefined[]>;
 
-export type DefaultMiddlewareChain = [
-  ProcessOutboxMiddleware,
-  SendMiddleware,
-  RetryMiddleware
-];
+export type DefaultMiddlewareChain = [ProcessOutboxMiddleware, SendMiddleware, RetryMiddleware];
 
 export type Hooks = {
   [customHookName: string]: (...args: any[]) => void;
@@ -55,12 +52,12 @@ export type Hooks = {
   onRollback: (error: UnknownError, action: Action['meta']['rollback']) => void;
   onStatusChange: (status: string) => void;
   onSerialize: (state: State) => void;
-  onRetry: (delay: number) => void
+  onRetry: (delay: number) => void;
 };
 
 export type Stream = {
   start: () => void;
-}
+};
 
 export type Context = {
   updater: Updater;
@@ -75,11 +72,7 @@ export type Options = {
     dequeue: (outbox: Action[], completed: Action) => Action[];
   };
   effect: (requestInfo: RequestInfo) => Promise<unknown>;
-  discard: (
-    error: UnknownError,
-    action: Action,
-    retries: number
-  ) => Promise<boolean> | boolean;
+  discard: (error: UnknownError, action: Action, retries: number) => Promise<boolean> | boolean;
   retry: (action: Action, retries: number) => number | null;
   alterStream: (
     defaultMiddlewareChain: DefaultMiddlewareChain,

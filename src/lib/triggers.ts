@@ -33,7 +33,7 @@ export function createTriggers(stream: Stream, { updater, hooks }: Context) {
   const resetState = () => {
     updateState(Updates.reset);
     stream.start();
-  }
+  };
 
   return {
     actionWasRequested,

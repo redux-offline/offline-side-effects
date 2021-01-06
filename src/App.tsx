@@ -28,7 +28,7 @@ const detectNetwork = callback => {
 const useOfflineSideEffects = hooks => {
   const offlineReducer = (_, newState) => ({ ...newState });
   const [persistedState, persist] = usePersistedOutbox(offlineReducer, {});
-  const { addSideEffect, setPaused, rehydrateState, restart } = useRef(
+  const { addSideEffect, setPaused, rehydrateState, restart, reset } = useRef(
     offlineSideEffects({ ...hooks, onSerialize: persist })
   ).current;
   const rehydrate = useRef(() => rehydrateState(persistedState)).current;
@@ -36,7 +36,8 @@ const useOfflineSideEffects = hooks => {
     addSideEffect,
     setPaused,
     rehydrate,
-    restart
+    restart,
+    reset
   };
 };
 
@@ -50,11 +51,7 @@ function App() {
     onEnd: () => {}
   };
 
-  const {
-    addSideEffect,
-    setPaused,
-    rehydrate
-  } = useOfflineSideEffects(hooks);
+  const { addSideEffect, setPaused, rehydrate } = useOfflineSideEffects(hooks);
 
   useEffect(() => {
     rehydrate();
