@@ -26,15 +26,19 @@ export const offlineSideEffects = (providedHooks: Partial<Hooks>, providedOption
     updater
   };
   const stream = createStream(context);
-  const { rehydrateState, actionWasRequested, togglePause, restartProcess } = createTriggers(
-    stream,
-    context
-  );
+  const {
+    rehydrateState,
+    actionWasRequested,
+    togglePause,
+    restartProcess,
+    resetState
+  } = createTriggers(stream, context);
 
   return {
     rehydrateState,
-    addSideEffect: action => actionWasRequested(action),
-    setPaused: paused => togglePause(paused),
-    restart: restartProcess
+    addSideEffect: actionWasRequested,
+    setPaused: togglePause,
+    restart: restartProcess,
+    reset: resetState
   };
 };

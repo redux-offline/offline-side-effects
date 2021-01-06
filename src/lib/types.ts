@@ -5,7 +5,8 @@ export enum Updates {
   pause = 'pause',
   rehydrate = 'rehydrate',
   scheduleRetry = 'scheduleRetry',
-  completeRetry = 'completeRetry'
+  completeRetry = 'completeRetry',
+  reset = 'reset'
 }
 export type UpdateState = (type: Updates, payload?: any) => void;
 
@@ -40,13 +41,11 @@ export type Middleware<PrevArgs extends any[], NextArgs extends any[]> = (
 export type ProcessOutboxMiddleware = Middleware<undefined[], [Action]>;
 export type SendMiddleware = Middleware<[Action], [UnknownError, Action]>;
 export type RetryMiddleware = Middleware<[UnknownError, Action], undefined[]>;
-export type WrapUpMiddleware = Middleware<undefined[], undefined[]>;
 
 export type DefaultMiddlewareChain = [
   ProcessOutboxMiddleware,
   SendMiddleware,
-  RetryMiddleware,
-  WrapUpMiddleware
+  RetryMiddleware
 ];
 
 export type Hooks = {
@@ -55,7 +54,6 @@ export type Hooks = {
   onCommit: (data: unknown, action: Action['meta']['commit']) => void;
   onRollback: (error: UnknownError, action: Action['meta']['rollback']) => void;
   onStatusChange: (status: string) => void;
-  onEnd: () => void;
   onSerialize: (state: State) => void;
   onRetry: (delay: number) => void
 };
