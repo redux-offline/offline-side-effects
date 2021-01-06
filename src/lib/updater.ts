@@ -2,8 +2,7 @@ import { State, UpdateState, Updater, Updates, Options, Hooks, Action } from './
 
 const initialState: State = {
   outbox: [],
-  status: 'idle', // 'idle', 'busy'
-  paused: false,
+  status: 'idle', // 'idle', 'busy', 'paused
   retryScheduled: null,
   retryCount: 0,
   lastTransaction: 0
@@ -13,12 +12,19 @@ export const createUpdater = (options: Options, hooks: Hooks): Updater => {
   const state = { ...initialState };
   const updateState: UpdateState = (type: Updates, payload = null) => {
     if (type === Updates.rehydrate) {
-      if (payload) {
-        Object.assign(state, payload);
+      if (payload.outbox) {
+        state.outbox = [...payload.outbox];
       }
     }
-    if (type === Updates.busy) {
-      state.status = state.status === 'idle' ? 'busy' : 'idle';
+    if (type === Updates.toggleBusy) {
+      if (state.status === 'idle') {
+        state.status = 'busy';
+      } else if (state.status === 'busy') {
+        state.status = 'idle';
+      }
+    }
+    if (type === Updates.pause) {
+      state.status = payload ? 'paused' : 'idle';
     }
     if (type === Updates.enqueue) {
       const transaction = state.lastTransaction + 1;
@@ -29,9 +35,6 @@ export const createUpdater = (options: Options, hooks: Hooks): Updater => {
     if (type === Updates.dequeue) {
       state.outbox = options.queue.dequeue(state.outbox, payload as Action);
       state.retryCount = initialState.retryCount;
-    }
-    if (type === Updates.pause) {
-      state.paused = payload;
     }
     if (type === Updates.scheduleRetry) {
       state.retryScheduled = payload;

@@ -1,5 +1,5 @@
 export enum Updates {
-  busy = 'busy',
+  toggleBusy = 'toggleBusy',
   enqueue = 'enqueue',
   dequeue = 'dequeue',
   pause = 'pause',
@@ -21,8 +21,7 @@ export type Action<T = { [key: string]: any }, C = {}, R = {}> = T & {
 
 export type State = {
   outbox: Action[];
-  status: 'idle' | 'busy';
-  paused: boolean;
+  status: 'idle' | 'busy' | 'paused';
   retryScheduled: number | null;
   retryCount: number;
   lastTransaction: number;
