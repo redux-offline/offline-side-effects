@@ -30,10 +30,16 @@ export function createTriggers(stream: Stream, { updater, hooks }: Context) {
     stream.start();
   };
 
+  const resetState = () => {
+    updateState(Updates.reset);
+    stream.start();
+  };
+
   return {
     actionWasRequested,
     togglePause,
     rehydrateState,
-    restartProcess
+    restartProcess,
+    resetState
   };
 }
