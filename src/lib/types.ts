@@ -44,8 +44,8 @@ export type RetryMiddleware = Middleware<[UnknownError, Action], undefined[]>;
 
 export type DefaultMiddlewareChain = [ProcessOutboxMiddleware, SendMiddleware, RetryMiddleware];
 
-export type Hooks = {
-  [customHookName: string]: (...args: any[]) => void;
+export type Listeners = {
+  [customListenersName: string]: (...args: any[]) => void;
   onRequest: (action: Action) => void;
   onCommit: (data: unknown, action: Action['meta']['commit']) => void;
   onRollback: (error: UnknownError, action: Action['meta']['rollback']) => void;
@@ -61,7 +61,7 @@ export type Stream = {
 export type Context = {
   updater: Updater;
   options: Options;
-  hooks: Hooks;
+  listeners: Listeners;
 };
 
 export type Options = {

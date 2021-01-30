@@ -30,17 +30,17 @@ type Options = {
 ```
 ## API
 
-The library contains 3 actors: Middleware, Hooks and Triggers. The different parts of the system are glued together by the Context object.
+The library contains 3 actors: Middleware, Listeners and Triggers. The different parts of the system are glued together by the Context object.
 
 ### Context
 
-The Context is an object that contains the provided options, the provided hooks, and the state updater. The Context object provides everything you need to alter the internals of the library.
+The Context is an object that contains the provided options, the provided listeners, and the state updater. The Context object provides everything you need to alter the internals of the library.
 
 ```ts
 type Context = {
   updater: Updater;
   options: Options;
-  hooks: Hooks;
+  listeners: Listeners;
 };
 ```
 
@@ -97,14 +97,14 @@ const store = async (next, data, action) => {
 };
 ```
 
-### Hooks (final name pending)
+### Listeners
 
-The hooks (not to be confused with React hooks) are callbacks that can be called from within the any Middleware, or Triggers. These are a the appropriate mechanism for sharing the internal library state with the userland application code.
-The library provides some default hooks that are being used by the default middleware and triggers. But the user can extend these to include any other hook that they deem necessary. This is very useful because the user can define a custom middleware that in turn has access to custom hooks.
+The listeners are callbacks that can be called from within the any Middleware, or Triggers. These are the appropriate mechanism for sharing the internal library state with the userland application code.
+The library provides some default listeners that are being used by the default middleware and triggers. But the user can extend these to include any other listener that they deem necessary. This is very useful because the user can define a custom middleware that in turn has access to custom listeners.
 
 ```ts
-export type Hooks = {
-  [customHookName: string]: (...args: any[]) => void;
+export type Listeners = {
+  [customListenerName: string]: (...args: any[]) => void;
   onRequest: (action: Action) => void;
   onCommit: (data: unknown, action: Action['meta']['commit']) => void;
   onRollback: (error: UnknownError, action: Action['meta']['rollback']) => void;

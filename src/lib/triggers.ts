@@ -1,13 +1,13 @@
 import { Action, Context, Stream, Updates, State } from './types';
 
-export function createTriggers(stream: Stream, { updater, hooks }: Context) {
+export function createTriggers(stream: Stream, { updater, listeners }: Context) {
   const [state, updateState] = updater;
 
   const actionWasRequested = (action: Action) => {
     if (action.meta?.effect) {
       const request = { ...action };
       updateState(Updates.enqueue, request);
-      hooks.onRequest(request);
+      listeners.onRequest(request);
     }
     stream.start();
   };
