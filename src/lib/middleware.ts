@@ -8,7 +8,7 @@ import {
 
 const sleep = ms => new Promise(res => setTimeout(res, ms));
 
-export function createMiddleware({ updater, options, hooks }: Context) {
+export function createMiddleware({ updater, options, listeners }: Context) {
   const [state, updateState] = updater;
 
   const processOutbox: ProcessOutboxMiddleware = async next => {
@@ -26,17 +26,17 @@ export function createMiddleware({ updater, options, hooks }: Context) {
 
   const send: SendMiddleware = async (next, action) => {
     updateState(Updates.toggleBusy);
-    hooks.onStatusChange(state.status);
+    listeners.onStatusChange(state.status);
     let error;
     try {
       const data = await options.effect(action.meta.effect);
-      hooks.onCommit(data, action.meta.commit);
+      listeners.onCommit(data, action.meta.commit);
       updateState(Updates.dequeue, action);
     } catch (err) {
       error = err;
     } finally {
       updateState(Updates.toggleBusy);
-      hooks.onStatusChange(state.status);
+      listeners.onStatusChange(state.status);
       await next(error, action);
     }
   };
@@ -56,11 +56,11 @@ export function createMiddleware({ updater, options, hooks }: Context) {
     if (!mustDiscard) {
       const delay = options.retry(action, state.retryCount);
       if (delay != null) {
-        hooks.onRetry(delay);
+        listeners.onRetry(delay);
         updateState(Updates.scheduleRetry, delay);
       }
     } else {
-      hooks.onRollback(error, action.meta.rollback);
+      listeners.onRollback(error, action.meta.rollback);
       updateState(Updates.dequeue);
     }
     await next();

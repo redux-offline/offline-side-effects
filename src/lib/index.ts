@@ -1,27 +1,27 @@
-import { Options, Hooks, Context } from './types';
+import { Options, Listeners, Context } from './types';
 import defaults from './defaults';
 import { createUpdater } from './updater';
 import { createTriggers } from './triggers';
 import { createStream } from './stream';
 
-export const offlineSideEffects = (providedHooks: Partial<Hooks>, providedOptions?: Options) => {
-  const hooks = {
+export const offlineSideEffects = (providedListeners: Partial<Listeners>, providedOptions?: Options) => {
+  const listeners = {
     onRequest: () => {},
     onCommit: () => {},
     onRollback: () => {},
     onStatusChange: () => {},
     onSerialize: () => {},
     onRetry: () => {},
-    ...providedHooks
+    ...providedListeners
   };
   const options = {
     ...defaults,
     ...providedOptions
   };
-  const updater = createUpdater(options, hooks);
+  const updater = createUpdater(options, listeners);
   const context: Context = {
     options,
-    hooks,
+    listeners,
     updater
   };
   const stream = createStream(context);
