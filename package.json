@@ -24,7 +24,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "build:lib": "tsc src/lib/*.ts --outDir dist"
+    "build:lib": "tsc src/lib/*.ts --declaration --outDir dist"
   },
   "eslintConfig": {
     "extends": "react-app"

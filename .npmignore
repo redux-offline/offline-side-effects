@@ -1,0 +1,8 @@
+.prettierrc
+.eslintcache
+.idea/**
+
+public/**
+build/**
+src/**
+!src/lib/
