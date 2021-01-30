@@ -14,6 +14,7 @@ export function createTriggers(stream: Stream, { updater, listeners }: Context) 
 
   const togglePause = (paused: boolean) => {
     updateState(Updates.pause, paused);
+    listeners.onStatusChange(state.status);
     if (!paused) {
       stream.start();
     }
