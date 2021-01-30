@@ -1,7 +1,6 @@
 {
   "name": "@redux-offline/offline-side-effects",
   "version": "0.1.0",
-  "private": false,
   "license": "MIT",
   "main": "dist/index.js",
   "dependencies": {
